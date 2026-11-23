@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Validation &amp; Authentication Simulator</title>
+  <!-- Load Tailwind CSS for responsive, modern styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Google Fonts: Inter & Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-xs">
+          <!-- Shield / Lock Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">User Validation &amp; Authentication Lab</h1>
+          <p class="text-xs text-slate-500">Full-Stack Client &rarr; Simulated Server &rarr; Database Credential Verification</p>
+        </div>
+      </div>
+
+      <!-- Architecture Status Pill & Mobile Inspector Toggle -->
+      <div class="flex items-center gap-2.5">
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-medium text-slate-600">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Simulated Backend: <code class="font-mono text-indigo-600">POST /api/login</code></span>
+        </div>
+        <button id="toggleInspectorBtn" type="button" class="lg:hidden inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+          </svg>
+          <span id="toggleInspectorText">Hide Server &amp; DB</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Split Workspace -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- ===================================================================
+           LEFT PANEL (5 cols): CLIENT BROWSER VIEW (Login Form / Success Page)
+           =================================================================== -->
+      <section class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <!-- Browser Mock Titlebar -->
+        <div class="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          </div>
+          <div id="browserUrlBar" class="px-3 py-1 bg-white border border-slate-200 rounded-md text-[11px] font-mono text-slate-500 truncate max-w-[230px] sm:max-w-xs">
+            https://portal.enterprise.local/login
+          </div>
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Client</span>
+        </div>
+
+        <!-- VIEW A1: CLIENT LOGIN FORM -->
+        <div id="loginView" class="p-6 sm:p-7 space-y-5">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 mb-2">
+              Authentication Portal
+            </span>
+            <h2 class="text-xl font-bold text-slate-900">Sign in to your account</h2>
+            <p class="text-xs text-slate-500 mt-1">Enter your registered login name and password to validate against the database.</p>
+          </div>
+
+          <!-- Failure Alert Box (Hidden by default; shown on 401 Unauthorized) -->
+          <div id="loginErrorAlert" class="hidden rounded-xl bg-rose-50 border border-rose-200 p-3.5 text-rose-800 flex items-start gap-3" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="text-xs leading-relaxed">
+              <p class="font-semibold text-rose-900">Authentication Failed (401 Unauthorized)</p>
+              <p id="loginErrorText" class="mt-0.5 text-rose-700">Invalid login name or password. No matching record found in the database.</p>
+            </div>
+          </div>
+
+          <!-- One-Click Fill Credentials Helper Chips -->
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Quick Fill Test Credentials:</p>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" data-fill-user="admin" data-fill-pass="admin123" class="fill-chip inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Valid: admin
+              </button>
+              <button type="button" data-fill-user="rahul.sharma" data-fill-pass="pass2026" class="fill-chip inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Valid: rahul.sharma
+              </button>
+              <button type="button" data-fill-user="priya.nair" data-fill-pass="welcome1" class="fill-chip inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Valid: priya.nair
+              </button>
+              <button type="button" data-fill-user="admin" data-fill-pass="wrongpass99" class="fill-chip inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                Invalid Attempt
+              </button>
+            </div>
+          </div>
+
+          <!-- Login Form -->
+          <form id="loginForm" class="space-y-4" novalidate>
+            <div>
+              <label for="loginUsername" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Login Name / Username
+              </label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <input id="loginUsername" name="username" type="text" autocomplete="username" required placeholder="e.g., rahul.sharma"
+                  class="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow">
+              </div>
+            </div>
+
+            <div>
+              <label for="loginPassword" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Password
+              </label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <input id="loginPassword" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password"
+                  class="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow">
+                <button id="togglePasswordVisibilityBtn" type="button" aria-label="Toggle password visibility"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <button id="signInBtn" type="submit"
+              class="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <span id="signInBtnText">Sign In &amp; Validate</span>
+              <svg id="signInArrow" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+              <!-- Loading Spinner -->
+              <svg id="signInSpinner" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </button>
+          </form>
+        </div>
+
+        <!-- VIEW A2: SUCCESSFUL LOGIN / AUTHENTICATED DASHBOARD (Hidden until 200 OK) -->
+        <div id="dashboardView" class="hidden p-6 sm:p-7 space-y-5">
+          <!-- Success Banner -->
+          <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3">
+            <div class="p-2 bg-emerald-100 text-emerald-700 rounded-full shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-emerald-900">Login Successful! (200 OK)</h3>
+              <p class="text-xs text-emerald-700 mt-0.5">Credentials verified against database. Session established.</p>
+            </div>
+          </div>
+
+          <!-- User Profile & Role Header -->
+          <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div class="flex items-center gap-3.5">
+              <div id="dashAvatar" class="w-12 h-12 rounded-xl bg-indigo-600 text-white font-bold text-lg flex items-center justify-center shadow-xs">
+                AD
+              </div>
+              <div>
+                <h2 id="dashFullName" class="text-base font-bold text-slate-900">System Administrator</h2>
+                <p id="dashUsername" class="text-xs font-mono text-slate-500">@admin</p>
+              </div>
+            </div>
+            <span id="dashRoleBadge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
+              Super Admin
+            </span>
+          </div>
+
+          <!-- Session Details Grid -->
+          <div class="border border-slate-200 rounded-2xl divide-y divide-slate-200 text-xs">
+            <div class="px-4 py-3 flex items-center justify-between">
+              <span class="font-medium text-slate-500">User ID (DB Primary Key)</span>
+              <span id="dashUserId" class="font-mono font-semibold text-slate-900">#101</span>
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <span class="font-medium text-slate-500">Department</span>
+              <span id="dashDepartment" class="font-semibold text-slate-800">IT Security</span>
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <span class="font-medium text-slate-500">Authenticated At</span>
+              <span id="dashLoginTime" class="font-mono text-slate-700">--</span>
+            </div>
+            <div class="px-4 py-3 flex flex-col gap-1.5 bg-slate-50/70 rounded-b-2xl">
+              <span class="font-medium text-slate-500">Active Session Token (JWT Simulated)</span>
+              <code id="dashSessionToken" class="font-mono text-[11px] text-indigo-700 bg-indigo-50/80 border border-indigo-100 px-2.5 py-1.5 rounded-lg break-all">
+                sess_9f8a7b6c5d4e3f2a1b0c
+              </code>
+            </div>
+          </div>
+
+          <!-- Logout Button -->
+          <button id="logoutBtn" type="button"
+            class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out / End Session
+          </button>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           RIGHT PANEL (7 cols): SERVER & DATABASE INSPECTOR
+           =================================================================== -->
+      <section id="inspectorPanel" class="lg:col-span-7 space-y-6">
+
+        <!-- CARD B1: IN-BROWSER SIMULATED DATABASE TABLE (`users`) -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-slate-900">Database Table: <code class="font-mono text-indigo-600">auth_db.users</code></h2>
+                <p class="text-xs text-slate-500">Click any row's <span class="font-semibold text-slate-700">Use</span> button to populate the login form</p>
+              </div>
+            </div>
+
+            <button id="toggleAddUserFormBtn" type="button"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors cursor-pointer self-start sm:self-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add User to DB
+            </button>
+          </div>
+
+          <!-- Collapsible Add New User Form -->
+          <div id="addUserDrawer" class="hidden p-4 bg-indigo-50/60 border-b border-indigo-100">
+            <form id="addUserForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 items-end">
+              <div>
+                <label for="newUsername" class="block text-[11px] font-semibold text-slate-700 mb-1">Username *</label>
+                <input id="newUsername" type="text" required placeholder="e.g., ananya.k"
+                  class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="newPassword" class="block text-[11px] font-semibold text-slate-700 mb-1">Password *</label>
+                <input id="newPassword" type="text" required placeholder="e.g., secret99"
+                  class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="newFullName" class="block text-[11px] font-semibold text-slate-700 mb-1">Full Name *</label>
+                <input id="newFullName" type="text" required placeholder="e.g., Ananya Rao"
+                  class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="newRole" class="block text-[11px] font-semibold text-slate-700 mb-1">Role</label>
+                <select id="newRole"
+                  class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="Employee">Employee</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Analyst">Analyst</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              <div class="flex gap-1.5">
+                <button type="submit"
+                  class="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                  Save
+                </button>
+                <button id="cancelAddUserBtn" type="button"
+                  class="py-1.5 px-2.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 text-xs font-medium rounded-lg transition-colors cursor-pointer">
+                  Cancel
+                </button>
+              </div>
+            </form>
+            <p id="addUserFeedback" class="hidden text-xs font-medium mt-2"></p>
+          </div>
+
+          <!-- Database Users Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100/80 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                  <th class="py-2.5 px-4">ID</th>
+                  <th class="py-2.5 px-4">username</th>
+                  <th class="py-2.5 px-4">password</th>
+                  <th class="py-2.5 px-4">full_name</th>
+                  <th class="py-2.5 px-4">role</th>
+                  <th class="py-2.5 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="dbUsersTableBody" class="divide-y divide-slate-200 text-xs text-slate-700">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CARD B2: REAL-TIME HTTP REQUEST/RESPONSE & SQL EXECUTION LOG -->
+        <div class="bg-slate-900 text-slate-100 border border-slate-800 rounded-2xl shadow-md overflow-hidden">
+          <div class="px-5 py-3.5 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+              <h2 class="text-xs sm:text-sm font-bold text-white tracking-tight">Live Server &amp; SQL Query Execution Log</h2>
+            </div>
+            <button id="clearLogsBtn" type="button"
+              class="px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-md transition-colors cursor-pointer">
+              Clear Log
+            </button>
+          </div>
+
+          <div id="serverLogContainer" class="p-4 space-y-4 max-h-[430px] overflow-y-auto font-mono text-xs">
+            <!-- Initial Empty / Ready State -->
+            <div id="logEmptyState" class="text-slate-400 py-6 text-center space-y-1">
+              <p class="text-slate-300 font-semibold">Server listening on port 443 — Ready for authentication requests</p>
+              <p class="text-[11px]">Submit the login form on the left to inspect the HTTP POST payload, SQL query check, and server response.</p>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+      <p>Full-Stack Authentication Flow Simulation &bull; Client Form &rarr; REST API &rarr; SQL Database Verification</p>
+      <p>Pre-seeded accounts: <code class="font-mono text-slate-700">admin</code>, <code class="font-mono text-slate-700">rahul.sharma</code>, <code class="font-mono text-slate-700">priya.nair</code></p>
+    </div>
+  </footer>
+
+  <!-- Client + Simulated Backend + In-Browser Database Logic -->
+  <script>
+    /**
+     * =========================================================================
+     * 1. SIMULATED IN-BROWSER RELATIONAL DATABASE (`auth_db.users`)
+     * =========================================================================
+     */
+    const usersDatabase = [
+      {
+        id: 101,
+        username: 'admin',
+        password: 'admin123',
+        fullName: 'System Administrator',
+        role: 'Super Admin',
+        department: 'IT Infrastructure & Security'
+      },
+      {
+        id: 102,
+        username: 'rahul.sharma',
+        password: 'pass2026',
+        fullName: 'Rahul Sharma',
+        role: 'Senior Engineer',
+        department: 'Platform Engineering'
+      },
+      {
+        id: 103,
+        username: 'priya.nair',
+        password: 'welcome1',
+        fullName: 'Priya Nair',
+        role: 'Product Manager',
+        department: 'Product Strategy'
+      },
+      {
+        id: 104,
+        username: 'vikram.rao',
+        password: 'dev@2026',
+        fullName: 'Vikram Rao',
+        role: 'Data Analyst',
+        department: 'Business Intelligence'
+      }
+    ];
+
+    let nextUserId = 105;
+    let activeSession = null;
+
+    // DOM Element References
+    const loginView = document.getElementById('loginView');
+    const dashboardView = document.getElementById('dashboardView');
+    const browserUrlBar = document.getElementById('browserUrlBar');
+
+    const loginForm = document.getElementById('loginForm');
+    const loginUsernameInput = document.getElementById('loginUsername');
+    const loginPasswordInput = document.getElementById('loginPassword');
+    const togglePasswordVisibilityBtn = document.getElementById('togglePasswordVisibilityBtn');
+    const loginErrorAlert = document.getElementById('loginErrorAlert');
+    const loginErrorText = document.getElementById('loginErrorText');
+
+    const signInBtn = document.getElementById('signInBtn');
+    const signInBtnText = document.getElementById('signInBtnText');
+    const signInArrow = document.getElementById('signInArrow');
+    const signInSpinner = document.getElementById('signInSpinner');
+
+    // Dashboard Elements
+    const dashAvatar = document.getElementById('dashAvatar');
+    const dashFullName = document.getElementById('dashFullName');
+    const dashUsername = document.getElementById('dashUsername');
+    const dashRoleBadge = document.getElementById('dashRoleBadge');
+    const dashUserId = document.getElementById('dashUserId');
+    const dashDepartment = document.getElementById('dashDepartment');
+    const dashLoginTime = document.getElementById('dashLoginTime');
+    const dashSessionToken = document.getElementById('dashSessionToken');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Server & DB Inspector Elements
+    const inspectorPanel = document.getElementById('inspectorPanel');
+    const toggleInspectorBtn = document.getElementById('toggleInspectorBtn');
+    const toggleInspectorText = document.getElementById('toggleInspectorText');
+    const dbUsersTableBody = document.getElementById('dbUsersTableBody');
+    const toggleAddUserFormBtn = document.getElementById('toggleAddUserFormBtn');
+    const addUserDrawer = document.getElementById('addUserDrawer');
+    const addUserForm = document.getElementById('addUserForm');
+    const cancelAddUserBtn = document.getElementById('cancelAddUserBtn');
+    const addUserFeedback = document.getElementById('addUserFeedback');
+
+    const serverLogContainer = document.getElementById('serverLogContainer');
+    const logEmptyState = document.getElementById('logEmptyState');
+    const clearLogsBtn = document.getElementById('clearLogsBtn');
+
+    /**
+     * Escapes HTML characters to safely display user-supplied text in the DOM.
+     */
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    /**
+     * Generates a pseudo-random session token for authenticated sessions.
+     */
+    function generateSessionToken(username) {
+      const randomHex = Array.from({ length: 24 }, () =>
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
+      return `tok_${username.replace(/[^a-z0-9]/gi, '')}_${randomHex}`;
+    }
+
+    /**
+     * =========================================================================
+     * 2. SIMULATED BACKEND SERVER ENDPOINT (`POST /api/login`)
+     * =========================================================================
+     * Simulates network latency, executes a parameterized lookup against
+     * `usersDatabase`, logs the HTTP & SQL trace, and returns 200 or 401.
+     */
+    function simulatedServerLogin(username, password) {
+      return new Promise((resolve) => {
+        const startTime = performance.now();
+
+        // Simulate realistic 320ms server processing & DB round-trip delay
+        setTimeout(() => {
+          const trimmedUser = username.trim();
+
+          // Parameterized SQL query check against in-browser usersDatabase
+          const matchedUser = usersDatabase.find(
+            (record) => record.username === trimmedUser && record.password === password
+          );
+
+          const elapsedMs = Math.round(performance.now() - startTime);
+          const timestamp = new Date().toLocaleTimeString();
+
+          if (matchedUser) {
+            const token = generateSessionToken(matchedUser.username);
+            const responsePayload = {
+              status: 200,
+              statusText: 'OK',
+              authenticated: true,
+              message: 'Authentication successful. Redirecting to dashboard.',
+              session: {
+                token,
+                user: {
+                  id: matchedUser.id,
+                  username: matchedUser.username,
+                  fullName: matchedUser.fullName,
+                  role: matchedUser.role,
+                  department: matchedUser.department
+                }
+              }
+            };
+
+            appendServerExecutionLog({
+              timestamp,
+              elapsedMs,
+              requestPayload: { username: trimmedUser, password },
+              matchedUser,
+              responsePayload
+            });
+
+            resolve(responsePayload);
+          } else {
+            // Determine specific reason for server log clarity
+            const userExists = usersDatabase.some((u) => u.username === trimmedUser);
+            const failureReason = !trimmedUser || !password
+              ? 'Missing required username or password fields.'
+              : userExists
+                ? 'Password mismatch for existing user record.'
+                : 'No user account found matching the provided login name.';
+
+            const responsePayload = {
+              status: 401,
+              statusText: 'Unauthorized',
+              authenticated: false,
+              error: 'Invalid login name or password. Please verify your credentials and try again.',
+              debugReason: failureReason
+            };
+
+            appendServerExecutionLog({
+              timestamp,
+              elapsedMs,
+              requestPayload: { username: trimmedUser, password },
+              matchedUser: null,
+              responsePayload
+            });
+
+            resolve(responsePayload);
+          }
+        }, 320);
+      });
+    }
+
+    /**
+     * =========================================================================
+     * 3. RENDERING FUNCTIONS (DB Table, Server Logs, View Transitions)
+     * =========================================================================
+     */
+
+    /**
+     * Renders the simulated `auth_db.users` table in the Inspector panel.
+     */
+    function renderDatabaseTable() {
+      dbUsersTableBody.innerHTML = '';
+
+      usersDatabase.forEach((user) => {
+        const isCurrentSessionUser = activeSession && activeSession.user.id === user.id;
+        const tr = document.createElement('tr');
+        tr.className = isCurrentSessionUser
+          ? 'bg-emerald-50/70 transition-colors'
+          : 'hover:bg-slate-50 transition-colors';
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-4 font-mono text-slate-500">${user.id}</td>
+          <td class="py-2.5 px-4 font-mono font-semibold text-slate-900">
+            ${escapeHtml(user.username)}
+            ${isCurrentSessionUser ? '<span class="ml-1.5 inline-block w-2 h-2 rounded-full bg-emerald-500" title="Currently Logged In"></span>' : ''}
+          </td>
+          <td class="py-2.5 px-4 font-mono text-indigo-600">${escapeHtml(user.password)}</td>
+          <td class="py-2.5 px-4 text-slate-700 whitespace-nowrap">${escapeHtml(user.fullName)}</td>
+          <td class="py-2.5 px-4 whitespace-nowrap">
+            <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+              ${escapeHtml(user.role)}
+            </span>
+          </td>
+          <td class="py-2.5 px-4 text-right whitespace-nowrap">
+            <button type="button"
+              data-use-username="${escapeHtml(user.username)}"
+              data-use-password="${escapeHtml(user.password)}"
+              class="use-db-row-btn px-2.5 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md transition-colors cursor-pointer">
+              Use
+            </button>
+          </td>
+        `;
+
+        dbUsersTableBody.appendChild(tr);
+      });
+
+      // Attach click listeners to "Use" buttons in the DB table
+      document.querySelectorAll('.use-db-row-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const u = btn.getAttribute('data-use-username');
+          const p = btn.getAttribute('data-use-password');
+          fillLoginCredentials(u, p);
+        });
+      });
+    }
+
+    /**
+     * Appends a structured HTTP Request -> SQL Query -> HTTP Response entry
+     * to the Server & SQL Execution Log panel.
+     */
+    function appendServerExecutionLog({ timestamp, elapsedMs, requestPayload, matchedUser, responsePayload }) {
+      if (logEmptyState) {
+        logEmptyState.classList.add('hidden');
+      }
+
+      const isSuccess = responsePayload.status === 200;
+      const badgeClasses = isSuccess
+        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+        : 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+
+      const entry = document.createElement('div');
+      entry.className = 'bg-slate-800/70 border border-slate-700/90 rounded-xl p-3.5 space-y-2.5';
+
+      const sanitizedSqlUsername = escapeHtml(requestPayload.username);
+      const maskedSqlPassword = escapeHtml(requestPayload.password);
+
+      entry.innerHTML = `
+        <!-- Header Line -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-700/80">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold border ${badgeClasses}">
+              HTTP ${responsePayload.status} ${responsePayload.statusText}
+            </span>
+            <span class="text-sky-300 font-semibold">POST /api/login</span>
+          </div>
+          <span class="text-[11px] text-slate-400">${timestamp} &bull; ${elapsedMs}ms</span>
+        </div>
+
+        <!-- Step 1: Incoming Client Request Payload -->
+        <div>
+          <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">1. Client Request Body (JSON)</p>
+          <pre class="bg-slate-950/80 text-slate-200 p-2 rounded-lg overflow-x-auto text-[11px]">${escapeHtml(JSON.stringify(requestPayload, null, 2))}</pre>
+        </div>
+
+        <!-- Step 2: Parameterized SQL Database Query -->
+        <div>
+          <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">2. Server SQL Query Execution</p>
+          <div class="bg-slate-950/80 p-2 rounded-lg text-[11px] leading-relaxed overflow-x-auto">
+            <span class="text-purple-400">SELECT</span> id, username, full_name, role <span class="text-purple-400">FROM</span> auth_db.users<br>
+            <span class="text-purple-400">WHERE</span> username = <span class="text-amber-300">'${sanitizedSqlUsername}'</span> <span class="text-purple-400">AND</span> password = <span class="text-amber-300">'${maskedSqlPassword}'</span>;
+            <div class="mt-1 pt-1 border-t border-slate-800 ${isSuccess ? 'text-emerald-400' : 'text-rose-400'}">
+              &rarr; ${isSuccess
+                ? `1 row matched (id=${matchedUser.id}, role='${escapeHtml(matchedUser.role)}')`
+                : `0 rows returned (${escapeHtml(responsePayload.debugReason)})`}
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Server JSON Response -->
+        <div>
+          <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">3. Server Response Payload</p>
+          <pre class="bg-slate-950/80 ${isSuccess ? 'text-emerald-300' : 'text-rose-300'} p-2 rounded-lg overflow-x-auto text-[11px]">${escapeHtml(JSON.stringify(responsePayload, null, 2))}</pre>
+        </div>
+      `;
+
+      // Prepend newest request at the top of the log
+      serverLogContainer.insertBefore(entry, serverLogContainer.firstChild);
+    }
+
+    /**
+     * Populates the Login Form inputs and switches back to the Login View if needed.
+     */
+    function fillLoginCredentials(username, password) {
+      if (activeSession) {
+        performLogout(false);
+      }
+      loginUsernameInput.value = username;
+      loginPasswordInput.value = password;
+      loginErrorAlert.classList.add('hidden');
+      loginUsernameInput.focus();
+    }
+
+    /**
+     * Transitions the Client Panel from Login Form -> Authenticated Dashboard.
+     */
+    function showAuthenticatedDashboard(sessionData) {
+      activeSession = sessionData;
+      const { user, token } = sessionData;
+
+      // Compute initials for avatar
+      const initials = user.fullName
+        .split(' ')
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+
+      dashAvatar.textContent = initials || 'U';
+      dashFullName.textContent = user.fullName;
+      dashUsername.textContent = `@${user.username}`;
+      dashRoleBadge.textContent = user.role;
+      dashUserId.textContent = `#${user.id}`;
+      dashDepartment.textContent = user.department || 'General';
+      dashLoginTime.textContent = new Date().toLocaleString();
+      dashSessionToken.textContent = token;
+
+      browserUrlBar.textContent = 'https://portal.enterprise.local/dashboard';
+      loginErrorAlert.classList.add('hidden');
+      loginView.classList.add('hidden');
+      dashboardView.classList.remove('hidden');
+
+      renderDatabaseTable();
+    }
+
+    /**
+     * Logs out the current user and returns to the Login View.
+     */
+    function performLogout(clearFields = true) {
+      activeSession = null;
+      browserUrlBar.textContent = 'https://portal.enterprise.local/login';
+      dashboardView.classList.add('hidden');
+      loginView.classList.remove('hidden');
+      loginErrorAlert.classList.add('hidden');
+
+      if (clearFields) {
+        loginForm.reset();
+      }
+      renderDatabaseTable();
+    }
+
+    /**
+     * =========================================================================
+     * 4. EVENT LISTENERS
+     * =========================================================================
+     */
+
+    // Handle Login Form Submission
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const username = loginUsernameInput.value;
+      const password = loginPasswordInput.value;
+
+      // Set loading UI state
+      signInBtn.disabled = true;
+      signInBtnText.textContent = 'Validating with Server...';
+      signInArrow.classList.add('hidden');
+      signInSpinner.classList.remove('hidden');
+      loginErrorAlert.classList.add('hidden');
+
+      const result = await simulatedServerLogin(username, password);
+
+      // Restore button state
+      signInBtn.disabled = false;
+      signInBtnText.textContent = 'Sign In & Validate';
+      signInArrow.classList.remove('hidden');
+      signInSpinner.classList.add('hidden');
+
+      if (result.authenticated) {
+        showAuthenticatedDashboard(result.session);
+      } else {
+        loginErrorText.textContent = result.error;
+        loginErrorAlert.classList.remove('hidden');
+      }
+    });
+
+    // Quick Fill Helper Chips
+    document.querySelectorAll('.fill-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const user = chip.getAttribute('data-fill-user');
+        const pass = chip.getAttribute('data-fill-pass');
+        fillLoginCredentials(user, pass);
+      });
+    });
+
+    // Toggle Password Visibility
+    togglePasswordVisibilityBtn.addEventListener('click', () => {
+      const isPassword = loginPasswordInput.type === 'password';
+      loginPasswordInput.type = isPassword ? 'text' : 'password';
+    });
+
+    // Logout Button
+    logoutBtn.addEventListener('click', () => {
+      performLogout(true);
+    });
+
+    // Toggle Add User Form Drawer
+    toggleAddUserFormBtn.addEventListener('click', () => {
+      addUserDrawer.classList.toggle('hidden');
+      addUserFeedback.classList.add('hidden');
+    });
+
+    cancelAddUserBtn.addEventListener('click', () => {
+      addUserDrawer.classList.add('hidden');
+      addUserForm.reset();
+      addUserFeedback.classList.add('hidden');
+    });
+
+    // Handle Adding a New User to the Simulated Database
+    addUserForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value;
+      const fullName = document.getElementById('newFullName').value.trim();
+      const role = document.getElementById('newRole').value;
+
+      if (!username || !password || !fullName) {
+        return;
+      }
+
+      // Check for duplicate username
+      const duplicate = usersDatabase.some(
+        (u) => u.username.toLowerCase() === username.toLowerCase()
+      );
+
+      if (duplicate) {
+        addUserFeedback.textContent = `Error: Username "${username}" already exists in auth_db.users.`;
+        addUserFeedback.className = 'text-xs font-medium mt-2 text-rose-600';
+        addUserFeedback.classList.remove('hidden');
+        return;
+      }
+
+      usersDatabase.push({
+        id: nextUserId++,
+        username,
+        password,
+        fullName,
+        role,
+        department: 'Operations'
+      });
+
+      renderDatabaseTable();
+      addUserForm.reset();
+      addUserFeedback.textContent = `Inserted user "${username}" into auth_db.users! Click "Use" in the table below to test login.`;
+      addUserFeedback.className = 'text-xs font-medium mt-2 text-emerald-700';
+      addUserFeedback.classList.remove('hidden');
+    });
+
+    // Clear Server Execution Logs
+    clearLogsBtn.addEventListener('click', () => {
+      serverLogContainer.innerHTML = '';
+      serverLogContainer.appendChild(logEmptyState);
+      logEmptyState.classList.remove('hidden');
+    });
+
+    // Mobile Inspector Panel Toggle
+    toggleInspectorBtn.addEventListener('click', () => {
+      const isHidden = inspectorPanel.classList.contains('hidden');
+      if (isHidden) {
+        inspectorPanel.classList.remove('hidden');
+        toggleInspectorText.textContent = 'Hide Server & DB';
+      } else {
+        inspectorPanel.classList.add('hidden');
+        toggleInspectorText.textContent = 'Show Server & DB';
+      }
+    });
+
+    // Initial Render
+    renderDatabaseTable();
+  </script>
+</body>
+</html>
